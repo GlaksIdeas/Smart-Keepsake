@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Keepsake settings</title>
+<link rel="stylesheet" href="/static/style.css">
+<style>
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0 12px; }
+  .items { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
+  .it { border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: var(--bg); display: flex; flex-direction: column; }
+  .it img { width: 100%; aspect-ratio: 1; object-fit: cover; display: block; }
+  .it .body { padding: 8px; font-size: .85rem; flex: 1; }
+  .it .tools { display: flex; border-top: 1px solid var(--line); }
+  .it .tools button { flex: 1; border: 0; border-radius: 0; min-height: 38px; font-size: .8rem; padding: 6px; background: transparent; }
+  .it.cover { outline: 2px solid var(--accent); }
+  .date-row { display: flex; gap: 10px; align-items: center; padding: 8px 0; border-top: 1px solid var(--line); }
+  .date-row:first-child { border-top: 0; }
+  .urls code { display: block; background: var(--bg); padding: 8px; border-radius: 8px; margin: 4px 0; word-break: break-all; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Keepsake settings</h1>
+  <p class="muted" id="sub"></p>
+
+  <!-- first-run setup -->
+  <form class="card hidden" id="setup">
+    <h2>Set up this keepsake</h2>
+    <label for="s_name">Full name</label>
+    <input id="s_name" required maxlength="120" placeholder="Margaret Ann Rose">
+    <label for="s_nick">What family called them (optional)</label>
+    <input id="s_nick" maxlength="60" placeholder="Grandma Peg">
+    <div class="grid2">
+      <div><label for="s_born">Born</label><input id="s_born" type="date"></div>
+      <div><label for="s_died">Passed</label><input id="s_died" type="date"></div>
+    </div>
+    <label for="s_tribute">A few words (optional, shown on the keepsake)</label>
+    <textarea id="s_tribute" maxlength="600" placeholder="Loved her garden, her grandkids, and a good crossword."></textarea>
+    <label for="s_family">Family code (share this with family so they can add memories)</label>
+    <input id="s_family" required minlength="4" autocomplete="off" placeholder="e.g. roses1946">
+    <label for="s_owner">Owner code (keep this private; it lets you edit and delete)</label>
+    <input id="s_owner" required minlength="6" type="password" autocomplete="new-password">
+    <p></p>
+    <button class="primary full">Set up keepsake</button>
+  </form>
+
+  <!-- owner sign in -->
+  <form class="card hidden" id="login">
+    <h2>Owner sign in</h2>
+    <label for="l_code">Owner code</label>
+    <input id="l_code" type="password" required autocomplete="current-password">
+    <p></p>
+    <button class="primary full">Sign in</button>
+  </form>
+
+  <div id="manage" class="hidden">
+    <div class="card urls">
+      <h2>Share with family</h2>
+      <p class="small muted">Family open this on their phones (same Wi-Fi as the keepsake for now), or tap their phone on the keepsake's NFC tag. Write this address to the tag.</p>
+      <div id="urls"></div>
+    </div>
+
+    <form class="card" id="profile">
+      <h2>About them</h2>
+      <label for="p_name">Full name</label>
+      <input id="p_name" required maxlength="120">
+      <label for="p_nick">What family called them</label>
+      <input id="p_nick" maxlength="60">
+      <div class="grid2">
+        <div><label for="p_born">Born</label><input id="p_born" type="date"></div>
+        <div><label for="p_died">Passed</label><input id="p_died" type="date"></div>
+      </div>
+      <label for="p_tribute">A few words</label>
+      <textarea id="p_tribute" maxlength="600"></textarea>
+      <h2 style="margin-top:20px">Display</h2>
+      <div class="grid2">
+        <div><label for="p_ns">Dim screen from</label><input id="p_ns" type="time"></div>
+        <div><label for="p_ne">until</label><input id="p_ne" type="time"></div>
+      </div>
+      <label for="p_secs">Seconds per photo</label>
+      <input id="p_secs" type="number" min="3" max="120">
+      <p></p>
+      <button class="primary full">Save</button>
+    </form>
+
+    <div class="card">
+      <h2>Special dates</h2>
+      <p class="small muted">Birthday and passing date come from above. Add anniversaries and other days the keepsake should mark.</p>
+      <div id="dates"></div>
+      <form id="adddate">
+        <label for="d_label">Name</label>
+        <input id="d_label" maxlength="80" placeholder="Wedding anniversary" required>
+        <div class="grid2">
+          <div><label for="d_date">Date</label><input id="d_date" type="date" required></div>
+          <div><label for="d_type">Kind</label>
+            <select id="d_type"><option value="anniversary">Anniversary</option><option value="birthday">Birthday</option><option value="other">Other</option></select></div>
+        </div>
+        <label><input type="checkbox" id="d_noyear"> Year unknown</label>
+        <button class="full">Add date</button>
+      </form>
+    </div>
+
+    <div class="card">
+      <h2>Memories</h2>
+      <p class="small muted">Choose which photo is the main portrait, or remove anything that shouldn't be on the keepsake.</p>
+      <div class="items" id="items"></div>
+    </div>
+
+    <form class="card" id="codes">
+      <h2>Change codes</h2>
+      <p class="small muted">Changing a code signs out every phone. Leave a box empty to keep that code.</p>
+      <label for="c_family">New family code</label>
+      <input id="c_family" autocomplete="off" minlength="4">
+      <label for="c_owner">New owner code</label>
+      <input id="c_owner" type="password" autocomplete="new-password" minlength="6">
+      <p></p>
+      <button class="full">Change codes</button>
+    </form>
+
+    <p style="text-align:center"><button id="logout">Sign out</button></p>
+  </div>
+  <p class="small muted" style="text-align:center"><a href="/family">Family page</a> · <a href="/sim">Simulator</a></p>
+</div>
+
+<script src="/static/common.js"></script>
+<script>
+const $ = (id) => document.getElementById(id);
+const show = (id) => ['setup', 'login', 'manage'].forEach((x) => $(x).classList.toggle('hidden', x !== id));
+const isoDate = (s) => (/^\d{4}-\d{2}-\d{2}$/.test(s || '') ? s : '');
+
+async function init() {
+  const info = await api('/api/memorial');
+  if (!info.setup) { $('sub').textContent = 'First time here. Let’s set things up.'; return show('setup'); }
+  if (info.role !== 'owner') { $('sub').textContent = `Remembering ${info.memorial.name}`; return show('login'); }
+  show('manage');
+  const m = info.memorial;
+  $('sub').textContent = `Remembering ${m.name}`;
+  $('urls').innerHTML = info.familyUrls.length
+    ? info.familyUrls.map((u) => `<code>${esc(u)}</code>`).join('')
+    : `<code>${esc(location.origin)}/family</code>`;
+  $('p_name').value = m.name;
+  $('p_nick').value = m.nickname || '';
+  $('p_born').value = isoDate(m.born);
+  $('p_died').value = isoDate(m.died);
+  $('p_tribute').value = m.tribute || '';
+  $('p_ns').value = info.settings.nightStart;
+  $('p_ne').value = info.settings.nightEnd;
+  $('p_secs').value = info.settings.slideSeconds;
+  await Promise.all([loadDates(), loadItems(m.coverId)]);
+}
+
+$('setup').onsubmit = async (e) => {
+  e.preventDefault();
+  try {
+    await api('/api/setup', { json: {
+      name: $('s_name').value, nickname: $('s_nick').value, born: $('s_born').value, died: $('s_died').value,
+      tribute: $('s_tribute').value, familyCode: $('s_family').value, ownerCode: $('s_owner').value,
+    } });
+    toast('All set. Now add some photos from the family page.');
+    init();
+  } catch (err) { toast(err.message, true); }
+};
+
+$('login').onsubmit = async (e) => {
+  e.preventDefault();
+  try {
+    const r = await api('/api/login', { json: { code: $('l_code').value } });
+    if (r.role !== 'owner') return toast('That is the family code. The owner code is needed here.', true);
+    init();
+  } catch (err) { toast(err.message, true); }
+};
+
+$('profile').onsubmit = async (e) => {
+  e.preventDefault();
+  try {
+    await api('/api/memorial', { method: 'PUT', json: {
+      name: $('p_name').value, nickname: $('p_nick').value, born: $('p_born').value, died: $('p_died').value,
+      tribute: $('p_tribute').value,
+      settings: { nightStart: $('p_ns').value, nightEnd: $('p_ne').value, slideSeconds: +$('p_secs').value },
+    } });
+    toast('Saved.');
+  } catch (err) { toast(err.message, true); }
+};
+
+function renderDates(dates) {
+  $('dates').innerHTML = dates.map((d) => `<div class="date-row"><div class="grow">${esc(d.label)}<div class="small muted">${fmtDate(d.date)}</div></div>
+    ${d.id === 'born' || d.id === 'died' ? '' : `<button class="danger" data-del-date="${d.id}">Remove</button>`}</div>`).join('');
+}
+async function loadDates() { renderDates((await api('/api/dates')).dates); }
+
+$('adddate').onsubmit = async (e) => {
+  e.preventDefault();
+  let date = $('d_date').value;
+  if ($('d_noyear').checked) date = '--' + date.slice(5);
+  try {
+    renderDates((await api('/api/dates', { json: { label: $('d_label').value, date, type: $('d_type').value } })).dates);
+    $('adddate').reset();
+  } catch (err) { toast(err.message, true); }
+};
+
+async function loadItems(coverId) {
+  const f = await api('/api/feed');
+  coverId = coverId ?? f.memorial.coverId;
+  $('items').innerHTML = f.items.map((it) => {
+    const body = it.kind === 'photo' ? `<img src="${esc(it.url)}" alt="" loading="lazy">`
+      : it.kind === 'voice' ? `<div class="body"><b>Voice note</b><audio controls preload="none" src="${esc(it.url)}" style="width:100%"></audio>${esc(it.caption || '')}</div>`
+      : `<div class="body">“${esc(it.text)}”</div>`;
+    const by = `<div class="body small muted">${it.from ? esc(it.from) + ' · ' : ''}${timeAgo(it.createdAt)}</div>`;
+    const coverBtn = it.kind === 'photo' ? `<button data-cover="${it.id}">${it.id === coverId ? 'Portrait ✓' : 'Make portrait'}</button>` : '';
+    return `<div class="it ${it.id === coverId ? 'cover' : ''}">${body}${by}<div class="tools">${coverBtn}<button class="danger" data-del="${it.id}">Delete</button></div></div>`;
+  }).join('') || '<p class="muted">Nothing yet.</p>';
+}
+
+document.addEventListener('click', async (e) => {
+  const t = e.target.closest('button');
+  if (!t) return;
+  try {
+    if (t.dataset.delDate) renderDates((await api(`/api/dates/${t.dataset.delDate}`, { method: 'DELETE' })).dates);
+    if (t.dataset.del && confirm('Delete this from the keepsake? This cannot be undone.')) {
+      await api(`/api/items/${t.dataset.del}`, { method: 'DELETE' });
+      loadItems();
+    }
+    if (t.dataset.cover) {
+      await api('/api/memorial', { method: 'PUT', json: { coverId: t.dataset.cover } });
+      loadItems(t.dataset.cover);
+    }
+  } catch (err) { toast(err.message, true); }
+});
+
+$('codes').onsubmit = async (e) => {
+  e.preventDefault();
+  if (!$('c_family').value && !$('c_owner').value) return;
+  try {
+    await api('/api/codes', { method: 'PUT', json: { familyCode: $('c_family').value, ownerCode: $('c_owner').value } });
+    $('codes').reset();
+    toast('Codes changed. Family will need the new code.');
+  } catch (err) { toast(err.message, true); }
+};
+
+$('logout').onclick = async () => { await api('/api/logout', { method: 'POST' }); location.reload(); };
+
+init().catch((err) => toast(err.message, true));
+</script>
+</body>
+</html>

@@ -1,0 +1,11 @@
+[Unit]
+Description=Smart keepsake button
+After=keepsake.service
+
+[Service]
+User=pi
+ExecStart=/usr/bin/python3 /home/pi/keepsake/hardware/button.py
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

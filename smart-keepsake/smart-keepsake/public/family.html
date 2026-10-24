@@ -1,0 +1,333 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#8a5a44">
+<title>Share a memory</title>
+<link rel="stylesheet" href="/static/style.css">
+<style>
+  .hero { text-align: center; padding: 24px 16px 8px; }
+  .hero img { width: 116px; height: 116px; border-radius: 50%; object-fit: cover; border: 3px solid var(--accent-soft); }
+  .hero .years { color: var(--accent); letter-spacing: .06em; }
+  .hero .tribute { font-family: ui-serif, Georgia, serif; font-style: italic; color: var(--muted); max-width: 34ch; margin: 8px auto 0; }
+  .actions { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .action { flex-direction: column; border-radius: var(--radius); padding: 14px 6px; font-size: .9rem; gap: 6px; min-height: 88px; }
+  .action svg { width: 26px; height: 26px; color: var(--accent); }
+  .action.active { border-color: var(--accent); background: var(--accent-soft); }
+  .previews { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 6px; margin-top: 10px; }
+  .previews img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 8px; }
+  .rec { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 8px 0; }
+  .recbtn { width: 84px; height: 84px; border-radius: 50%; border: 0; background: var(--accent); color: var(--accent-text); }
+  .recbtn.on { background: var(--danger); animation: breathe 1.4s infinite; }
+  .recbtn svg { width: 34px; height: 34px; }
+  @keyframes breathe { 50% { box-shadow: 0 0 0 12px color-mix(in srgb, var(--danger) 20%, transparent); } }
+  .timer { font-variant-numeric: tabular-nums; font-size: 1.4rem; }
+  .feed .mem { border-top: 1px solid var(--line); padding: 14px 0; }
+  .feed .mem:first-child { border-top: 0; padding-top: 0; }
+  .feed img { width: 100%; border-radius: 10px; display: block; max-height: 420px; object-fit: cover; }
+  .feed audio { width: 100%; margin-top: 4px; }
+  .feed .msg { font-family: ui-serif, Georgia, serif; font-size: 1.1rem; }
+  .date-row { display: flex; justify-content: space-between; padding: 8px 0; border-top: 1px solid var(--line); }
+  .date-row:first-child { border-top: 0; }
+  .progress { height: 6px; background: var(--line); border-radius: 6px; overflow: hidden; margin-top: 10px; }
+  .progress i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .2s; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="hero" id="hero"><p class="muted">Loading…</p></div>
+
+  <!-- not set up yet -->
+  <div class="card hidden" id="notsetup">
+    <h2>This keepsake isn't set up yet</h2>
+    <p>The person looking after it can set it up on the <a href="/admin">owner page</a>.</p>
+  </div>
+
+  <!-- family code -->
+  <form class="card hidden" id="gate">
+    <h2>Enter the family code</h2>
+    <p class="muted small">Ask the family member who set up the keepsake. You only need to do this once on this phone.</p>
+    <label for="code">Family code</label>
+    <input id="code" autocomplete="off" autocapitalize="none" required>
+    <p></p>
+    <button class="primary full">Continue</button>
+  </form>
+
+  <div id="main" class="hidden">
+    <div class="card">
+      <label for="from" style="margin-top:0">Your name (shown with what you share)</label>
+      <input id="from" placeholder="e.g. Sarah (granddaughter)" maxlength="60" autocomplete="name">
+      <p></p>
+      <div class="actions" role="tablist">
+        <button class="action" data-panel="photos" type="button">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="10" r="2"/><path d="m21 16-5-5-9 8"/></svg>Photos</button>
+        <button class="action" data-panel="voice" type="button">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>Voice note</button>
+        <button class="action" data-panel="message" type="button">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 5h16v11H8l-4 4z"/></svg>Message</button>
+      </div>
+
+      <form id="photos" class="panel hidden">
+        <label for="photofiles">Choose photos</label>
+        <input id="photofiles" type="file" accept="image/*" multiple>
+        <div class="previews" id="previews"></div>
+        <label for="photocap">Caption (optional, used for all chosen photos)</label>
+        <input id="photocap" maxlength="300" placeholder="e.g. Lake Tahoe, summer 1978">
+        <div class="progress hidden" id="photoprog"><i></i></div>
+        <p></p>
+        <button class="primary full" id="photosend" disabled>Add to keepsake</button>
+      </form>
+
+      <form id="voice" class="panel hidden">
+        <div class="rec" id="recorder">
+          <button type="button" class="recbtn" id="recbtn" aria-label="Start recording">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 15a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3Zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-2.08A7 7 0 0 0 19 12h-2Z"/></svg>
+          </button>
+          <div class="timer" id="rectime">0:00</div>
+          <div class="muted small" id="rechint">Tap to record. Up to 3 minutes.</div>
+          <audio id="recplay" controls class="hidden" style="width:100%"></audio>
+        </div>
+        <div id="voicefallback" class="hidden">
+          <p class="muted small">Recording in the page needs a secure (https) connection. You can record with your phone's voice recorder and pick the file here instead.</p>
+        </div>
+        <label for="voicefile">Or choose an audio file</label>
+        <input id="voicefile" type="file" accept="audio/*">
+        <label for="voicecap">What is it about? (optional)</label>
+        <input id="voicecap" maxlength="300" placeholder="e.g. Happy birthday, Grandma">
+        <p></p>
+        <button class="primary full" id="voicesend" disabled>Add to keepsake</button>
+      </form>
+
+      <form id="message" class="panel hidden">
+        <label for="msgtext">Your message</label>
+        <textarea id="msgtext" maxlength="600" placeholder="Share a memory, a thought, or what you want them to know."></textarea>
+        <p></p>
+        <button class="primary full">Add to keepsake</button>
+      </form>
+    </div>
+
+    <div class="card hidden" id="datescard">
+      <h2>Coming up</h2>
+      <div id="dates"></div>
+    </div>
+
+    <div class="card">
+      <h2>Shared memories</h2>
+      <div class="feed" id="feed"></div>
+    </div>
+  </div>
+
+  <p class="small muted" style="text-align:center"><a href="/admin">Owner settings</a></p>
+</div>
+
+<script src="/static/common.js"></script>
+<script>
+const $ = (id) => document.getElementById(id);
+const store = {
+  get: (k) => { try { return localStorage.getItem(k); } catch { return null; } },
+  set: (k, v) => { try { localStorage.setItem(k, v); } catch {} },
+};
+
+async function init() {
+  const info = await api('/api/memorial');
+  if (!info.setup) { $('hero').innerHTML = ''; $('notsetup').classList.remove('hidden'); return; }
+  const m = info.memorial;
+  document.title = `Remembering ${m.name}`;
+  if (!info.role || info.role === 'device') {
+    $('hero').innerHTML = `<p class="muted">Remembering</p><h1>${esc(m.name)}</h1>`;
+    $('gate').classList.remove('hidden');
+    return;
+  }
+  $('gate').classList.add('hidden');
+  $('main').classList.remove('hidden');
+  $('from').value = store.get('urn_from') || '';
+  await refresh();
+  const es = new EventSource('/api/events');
+  es.onmessage = (e) => { if (JSON.parse(e.data).type === 'update') refresh(); };
+}
+
+async function refresh() {
+  const f = await api('/api/feed');
+  const m = f.memorial;
+  $('hero').innerHTML = `${m.coverUrl ? `<img src="${esc(m.coverUrl)}" alt="">` : ''}
+    <p class="muted" style="margin:.6rem 0 0">Remembering</p><h1>${esc(m.name)}</h1>
+    <div class="years">${esc(lifeYears(m))}</div>${m.tribute ? `<p class="tribute">${esc(m.tribute)}</p>` : ''}`;
+
+  const cal = [...f.calendar.highlights.map((h) => ({ label: h.text, when: 'Today' })),
+    ...f.calendar.upcoming.map((u) => ({ label: u.label + (u.years ? ` (${u.years} years)` : ''), when: u.inDays === 1 ? 'Tomorrow' : `In ${u.inDays} days` }))];
+  $('datescard').classList.toggle('hidden', !cal.length);
+  $('dates').innerHTML = cal.map((d) => `<div class="date-row"><span>${esc(d.label)}</span><span class="muted">${d.when}</span></div>`).join('');
+
+  $('feed').innerHTML = f.items.length ? f.items.map((it) => {
+    const who = `<div class="small muted" style="margin-top:6px">${it.from ? esc(it.from) + ' · ' : ''}${timeAgo(it.createdAt)}</div>`;
+    if (it.kind === 'photo') return `<div class="mem"><img src="${esc(it.url)}" alt="" loading="lazy">${it.caption ? `<div style="margin-top:6px">${esc(it.caption)}</div>` : ''}${who}</div>`;
+    if (it.kind === 'voice') return `<div class="mem"><div>Voice note${it.caption ? ': ' + esc(it.caption) : ''}</div><audio controls preload="none" src="${esc(it.url)}"></audio>${who}</div>`;
+    return `<div class="mem"><div class="msg">“${esc(it.text)}”</div>${who}</div>`;
+  }).join('') : '<p class="muted">Nothing shared yet. Be the first.</p>';
+}
+
+$('gate').onsubmit = async (e) => {
+  e.preventDefault();
+  try { await api('/api/login', { json: { code: $('code').value } }); init(); }
+  catch (err) { toast(err.message, true); }
+};
+$('from').oninput = () => store.set('urn_from', $('from').value.trim());
+
+// panels
+document.querySelectorAll('.action').forEach((b) => b.onclick = () => {
+  const open = !b.classList.contains('active');
+  document.querySelectorAll('.action').forEach((x) => x.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach((p) => p.classList.add('hidden'));
+  if (open) { b.classList.add('active'); $(b.dataset.panel).classList.remove('hidden'); }
+});
+
+function upload(blob, filename, fields, onProgress) {
+  return new Promise((resolve, reject) => {
+    const fd = new FormData();
+    fd.append('from', $('from').value.trim());
+    for (const [k, v] of Object.entries(fields)) fd.append(k, v);
+    fd.append('file', blob, filename);
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', '/api/upload');
+    xhr.upload.onprogress = (e) => e.lengthComputable && onProgress?.(e.loaded / e.total);
+    xhr.onload = () => {
+      let data = {};
+      try { data = JSON.parse(xhr.responseText); } catch {}
+      xhr.status < 300 ? resolve(data) : reject(new Error(data.error || `Upload failed (${xhr.status})`));
+    };
+    xhr.onerror = () => reject(new Error('Could not reach the keepsake. Are you on the same Wi-Fi?'));
+    xhr.send(fd);
+  });
+}
+
+// ---- photos: shrink on the phone first (also turns iPhone HEIC into JPEG) ----
+
+function shrinkImage(file, max = 1920) {
+  return new Promise((resolve) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      const scale = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight));
+      const c = document.createElement('canvas');
+      c.width = Math.round(img.naturalWidth * scale);
+      c.height = Math.round(img.naturalHeight * scale);
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(url);
+      c.toBlob((b) => resolve(b || file), 'image/jpeg', 0.86);
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); resolve(file); };
+    img.src = url;
+  });
+}
+
+$('photofiles').onchange = () => {
+  const files = [...$('photofiles').files];
+  $('previews').innerHTML = files.map((f) => `<img src="${URL.createObjectURL(f)}" alt="">`).join('');
+  $('photosend').disabled = !files.length;
+  $('photosend').textContent = files.length > 1 ? `Add ${files.length} photos` : 'Add to keepsake';
+};
+$('photos').onsubmit = async (e) => {
+  e.preventDefault();
+  const files = [...$('photofiles').files];
+  const btn = $('photosend'), prog = $('photoprog');
+  btn.disabled = true;
+  prog.classList.remove('hidden');
+  try {
+    for (let i = 0; i < files.length; i++) {
+      btn.textContent = `Sending ${i + 1} of ${files.length}…`;
+      const blob = await shrinkImage(files[i]);
+      await upload(blob, 'photo.jpg', { caption: $('photocap').value.trim() },
+        (p) => prog.firstElementChild.style.width = `${100 * (i + p) / files.length}%`);
+    }
+    toast(files.length > 1 ? 'Photos added. They will appear on the keepsake now.' : 'Photo added. It will appear on the keepsake now.');
+    $('photos').reset();
+    $('previews').innerHTML = '';
+  } catch (err) { toast(err.message, true); }
+  prog.classList.add('hidden');
+  prog.firstElementChild.style.width = 0;
+  btn.textContent = 'Add to keepsake';
+  btn.disabled = !$('photofiles').files.length;
+};
+
+// ---- voice notes ----
+
+let recorder = null, recBlob = null, recStart = 0, recTimer = null, recDuration = 0;
+const canRecord = window.isSecureContext && navigator.mediaDevices?.getUserMedia && window.MediaRecorder;
+if (!canRecord) { $('recorder').classList.add('hidden'); $('voicefallback').classList.remove('hidden'); }
+
+function pickMime() {
+  for (const t of ['audio/mp4', 'audio/webm;codecs=opus', 'audio/webm', 'audio/ogg'])
+    if (MediaRecorder.isTypeSupported?.(t)) return t;
+  return '';
+}
+
+$('recbtn').onclick = async () => {
+  if (recorder?.state === 'recording') return recorder.stop();
+  let stream;
+  try { stream = await navigator.mediaDevices.getUserMedia({ audio: true }); }
+  catch { return toast('Microphone permission was blocked.', true); }
+  const mime = pickMime();
+  recorder = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined);
+  const chunks = [];
+  recorder.ondataavailable = (e) => e.data.size && chunks.push(e.data);
+  recorder.onstop = () => {
+    stream.getTracks().forEach((t) => t.stop());
+    clearInterval(recTimer);
+    recDuration = (Date.now() - recStart) / 1000;
+    recBlob = new Blob(chunks, { type: (recorder.mimeType || mime || 'audio/webm').split(';')[0] });
+    $('recplay').src = URL.createObjectURL(recBlob);
+    $('recplay').classList.remove('hidden');
+    $('recbtn').classList.remove('on');
+    $('rechint').textContent = 'Listen back, then add it. Tap the button to record again.';
+    $('voicesend').disabled = false;
+  };
+  recorder.start();
+  recStart = Date.now();
+  $('recbtn').classList.add('on');
+  $('rechint').textContent = 'Recording… tap to stop.';
+  $('recplay').classList.add('hidden');
+  recTimer = setInterval(() => {
+    const s = (Date.now() - recStart) / 1000;
+    $('rectime').textContent = fmtDuration(s) || '0:00';
+    if (s >= 180) recorder.stop();
+  }, 250);
+};
+
+$('voicefile').onchange = () => { $('voicesend').disabled = !$('voicefile').files.length && !recBlob; };
+
+$('voice').onsubmit = async (e) => {
+  e.preventDefault();
+  const file = $('voicefile').files[0];
+  const blob = file || recBlob;
+  if (!blob) return;
+  const ext = { 'audio/mp4': 'm4a', 'audio/webm': 'webm', 'audio/ogg': 'ogg' }[blob.type] || 'audio';
+  $('voicesend').disabled = true;
+  try {
+    await upload(blob, file ? file.name : `voice.${ext}`, { caption: $('voicecap').value.trim(), duration: file ? '' : String(Math.round(recDuration)) });
+    toast('Voice note added. Press the keepsake button to hear it.');
+    $('voice').reset();
+    recBlob = null;
+    $('recplay').classList.add('hidden');
+    $('rectime').textContent = '0:00';
+    $('rechint').textContent = 'Tap to record. Up to 3 minutes.';
+  } catch (err) { toast(err.message, true); $('voicesend').disabled = false; }
+};
+
+// ---- messages ----
+
+$('message').onsubmit = async (e) => {
+  e.preventDefault();
+  const text = $('msgtext').value.trim();
+  if (!text) return toast('Please write a message first.', true);
+  try {
+    await api('/api/message', { json: { text, from: $('from').value.trim() } });
+    toast('Message added.');
+    $('message').reset();
+  } catch (err) { toast(err.message, true); }
+};
+
+init().catch((err) => toast(err.message, true));
+</script>
+</body>
+</html>

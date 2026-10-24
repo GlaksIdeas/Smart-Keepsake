@@ -1,0 +1,369 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Urn display</title>
+<style>
+  :root { --gold: #e8c9a0; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: #000; color: #fff; overflow: hidden; cursor: none;
+    font-family: ui-sans-serif, -apple-system, "Segoe UI", Roboto, sans-serif; user-select: none; }
+  body.sim { cursor: pointer; }
+  .hidden { display: none !important; }
+  .serif { font-family: ui-serif, Georgia, "Times New Roman", serif; }
+
+  .slide { position: absolute; inset: 0; opacity: 0; transition: opacity 1.4s ease; overflow: hidden; }
+  .slide.on { opacity: 1; }
+  .slide .bg { position: absolute; inset: -8%; background-size: cover; background-position: center;
+    filter: blur(28px) brightness(.45) saturate(1.1); }
+  .slide img.fg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
+  .slide.on img.fg { animation: drift var(--dur, 9s) ease-out forwards; }
+  @keyframes drift { from { transform: scale(1); } to { transform: scale(1.06); } }
+
+  .caption { position: absolute; left: 0; right: 0; bottom: 0; padding: 14vmin 6vmin 6vmin;
+    background: linear-gradient(transparent, rgba(0,0,0,.75)); font-size: 4.2vmin; line-height: 1.3; }
+  .caption .from { color: var(--gold); font-size: 3.4vmin; margin-top: .6vmin; }
+
+  .center { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center;
+    justify-content: center; text-align: center; padding: 10vmin; }
+  .quote { font-size: 6vmin; line-height: 1.35; max-width: 32ch; }
+  .quote.long { font-size: 4.6vmin; }
+  .quote-from { color: var(--gold); margin-top: 4vmin; font-size: 3.8vmin; }
+  .msgbg { background: radial-gradient(circle at 50% 35%, #3a2a22, #0c0907 75%); }
+
+  .portrait { width: 34vmin; height: 34vmin; border-radius: 50%; object-fit: cover; border: .6vmin solid var(--gold);
+    box-shadow: 0 0 6vmin rgba(232,201,160,.25); margin-bottom: 4vmin; }
+  .name { font-size: 8vmin; line-height: 1.1; }
+  .years { color: var(--gold); font-size: 4.4vmin; margin-top: 1.5vmin; letter-spacing: .08em; }
+  .tribute { font-size: 3.8vmin; opacity: .85; margin-top: 3vmin; max-width: 36ch; line-height: 1.4; }
+  .celebrate { color: var(--gold); font-size: 3.6vmin; letter-spacing: .2em; text-transform: uppercase; margin-bottom: 3vmin; }
+  .headline { font-size: 6.4vmin; line-height: 1.25; max-width: 22ch; }
+
+  /* persistent overlays */
+  .tag { position: absolute; top: 4vmin; left: 4vmin; font-size: max(3vmin, 15px); opacity: .7; text-shadow: 0 1px 4px #000; transition: opacity .4s; }
+  .ribbon { transition: opacity .4s; position: absolute; top: 4vmin; right: 4vmin; background: rgba(232,201,160,.92); color: #2a1d14;
+    padding: 1.4vmin 3vmin; border-radius: 99px; font-size: max(3vmin, 15px); max-width: 60%; }
+  body.flash .ribbon { visibility: hidden; }
+  .newbadge { position: absolute; top: 4vmin; left: 50%; transform: translateX(-50%); background: #fff; color: #222;
+    padding: 1.4vmin 3.4vmin; border-radius: 99px; font-size: 3.2vmin; animation: pop .5s ease; white-space: nowrap; }
+  @keyframes pop { from { transform: translate(-50%, -150%); } }
+  .voicehint { position: absolute; right: 4vmin; bottom: 4vmin; font-size: max(3vmin, 14px); opacity: .75; display: flex; gap: 1.2vmin; align-items: center; }
+  .voicehint svg, .player svg { width: 4vmin; height: 4vmin; }
+  .soundhint { position: absolute; left: 50%; bottom: 14vmin; transform: translateX(-50%); background: rgba(0,0,0,.7);
+    padding: 1.4vmin 3vmin; border-radius: 99px; font-size: 3vmin; }
+
+  .player { position: absolute; left: 50%; bottom: 8vmin; transform: translateX(-50%); width: min(80vmin, 86%);
+    background: rgba(20,14,10,.82); border: 1px solid rgba(232,201,160,.35); border-radius: 4vmin; padding: 3.5vmin 4.5vmin;
+    backdrop-filter: blur(8px); display: flex; gap: 3vmin; align-items: center; }
+  .player .pulse { width: 9vmin; height: 9vmin; border-radius: 50%; background: var(--gold); color: #2a1d14; flex: none;
+    display: grid; place-items: center; animation: breathe 1.6s ease-in-out infinite; }
+  .player .pulse svg { width: 4.6vmin; height: 4.6vmin; }
+  @keyframes breathe { 50% { box-shadow: 0 0 0 2.4vmin rgba(232,201,160,.15); } }
+  .player .who { font-size: 3.8vmin; }
+  .player .what { font-size: 3vmin; opacity: .75; margin-top: .4vmin; }
+  .bar { height: .8vmin; background: rgba(255,255,255,.2); border-radius: 1vmin; margin-top: 1.6vmin; overflow: hidden; }
+  .bar i { display: block; height: 100%; width: 0; background: var(--gold); }
+
+  .night { position: absolute; inset: 0; background: #000; opacity: 0; pointer-events: none; transition: opacity 3s;
+    display: flex; align-items: center; justify-content: center; flex-direction: column; }
+  .night.on { opacity: .9; }
+  .night .clock { font-size: 12vmin; opacity: .35; font-weight: 200; }
+
+  /* round screens: keep corner overlays inside the circle */
+  body.round .tag { top: 13vmin; left: 50%; transform: translateX(-50%); }
+  body.round .ribbon { top: 19vmin; right: 50%; transform: translateX(50%); max-width: 70%; text-align: center; }
+  body.round .voicehint { right: 50%; transform: translateX(50%); bottom: 9vmin; }
+  body.round .caption { text-align: center; padding-bottom: 16vmin; padding-left: 14vmin; padding-right: 14vmin; }
+</style>
+</head>
+<body>
+<div id="stage"></div>
+<div class="tag serif" id="tag"></div>
+<div class="ribbon hidden" id="ribbon"></div>
+<div class="newbadge hidden" id="newbadge"></div>
+<div class="voicehint hidden" id="voicehint"></div>
+<div class="soundhint hidden" id="soundhint">Tap the screen once to turn on sound</div>
+<div class="player hidden" id="player">
+  <div class="pulse"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 15a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3Zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-2.08A7 7 0 0 0 19 12h-2Z"/></svg></div>
+  <div style="flex:1;min-width:0">
+    <div class="who" id="pwho"></div>
+    <div class="what" id="pwhat"></div>
+    <div class="bar"><i id="pbar"></i></div>
+  </div>
+</div>
+<div class="night" id="night"><div class="clock" id="clock"></div></div>
+<audio id="audio" preload="none"></audio>
+
+<script>
+const MIC = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 15a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3Zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-2.08A7 7 0 0 0 19 12h-2Z"/></svg>';
+const params = new URLSearchParams(location.search);
+const dateOverride = params.get('date');
+if (params.get('sim')) document.body.classList.add('sim');
+if (params.get('shape') === 'round') document.body.classList.add('round');
+
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+let data = null;           // last feed from the server
+let slides = [];           // playlist
+let pos = -1;              // index of the slide on screen
+let timer = null;
+let voices = [];
+let voiceIdx = 0;
+let forceNight = null;     // simulator override: true / false / null (follow schedule)
+let pinnedNext = null;     // item id to show next (fresh upload)
+
+function years(m) {
+  const y = (s) => (/^\d{4}/.exec(s || '') || [''])[0];
+  const a = y(m.born), b = y(m.died);
+  return a || b ? `${a || '?'} – ${b || ''}` : '';
+}
+
+async function load() {
+  const q = dateOverride ? `?date=${encodeURIComponent(dateOverride)}` : '';
+  const res = await fetch('/api/feed' + q);
+  if (res.status === 409) return showSetup();
+  if (!res.ok) throw new Error('feed ' + res.status);
+  data = await res.json();
+  build();
+}
+
+function showSetup() {
+  data = null;
+  if (slides[pos]?.kind === 'setup') return schedule();
+  slides = [{ kind: 'setup' }];
+  pos = -1;
+  advance();
+  fetch('/api/memorial').then((r) => r.json()).then((m) => {
+    const el = document.querySelector('.slide.on .setupurl');
+    if (el && m.familyUrls[0]) el.textContent = m.familyUrls[0].replace('/family', '/admin');
+  });
+}
+
+// Playlist: highlight cards, then the portrait, then photos with a
+// written message after every few photos.
+function build() {
+  const m = data.memorial;
+  const photos = data.items.filter((i) => i.kind === 'photo');
+  const messages = data.items.filter((i) => i.kind === 'message');
+  voices = data.items.filter((i) => i.kind === 'voice');
+  if (voiceIdx >= voices.length) voiceIdx = 0;
+
+  const list = data.calendar.highlights.map((h) => ({ kind: 'highlight', h }));
+  list.push({ kind: 'portrait' });
+  let mi = 0;
+  photos.forEach((p, i) => {
+    list.push({ kind: 'photo', item: p });
+    if ((i + 1) % 3 === 0 && mi < messages.length) list.push({ kind: 'message', item: messages[mi++] });
+  });
+  while (mi < messages.length) list.push({ kind: 'message', item: messages[mi++] });
+
+  const current = slides[pos];
+  slides = list;
+  // keep our place if the slide on screen still exists
+  pos = current ? Math.max(-1, slides.findIndex((s) => sameSlide(s, current)) ) : -1;
+
+  $('tag').innerHTML = `${esc(m.name)}<br><span style="opacity:.8">${esc(years(m))}</span>`;
+  const hl = data.calendar.highlights[0];
+  $('ribbon').textContent = hl ? hl.text : '';
+  $('ribbon').classList.toggle('hidden', !hl);
+  renderVoiceHint();
+  if (!timer || current?.kind === 'setup' || !document.querySelector('.slide.on')) advance();
+}
+
+function sameSlide(a, b) {
+  return a.kind === b.kind && (a.item?.id || a.h?.id || '') === (b.item?.id || b.h?.id || '');
+}
+
+function renderVoiceHint() {
+  const n = voices.length;
+  $('voicehint').innerHTML = n ? `${MIC}<span>${n} voice note${n === 1 ? '' : 's'} · tap to listen</span>` : '';
+  $('voicehint').classList.toggle('hidden', !n || !$('player').classList.contains('hidden'));
+}
+
+function slideHtml(s) {
+  const m = data?.memorial;
+  switch (s.kind) {
+    case 'setup':
+      return `<div class="center msgbg"><div class="name serif">Welcome</div>
+        <div class="tribute">To set up this keepsake, open<br><b class="setupurl">/admin</b><br>on a phone or computer on the same Wi-Fi.</div></div>`;
+    case 'portrait': {
+      const img = m.coverUrl ? `<img class="portrait" src="${esc(m.coverUrl)}" alt="">` : '';
+      const bg = m.coverUrl ? `<div class="bg" style="background-image:url('${esc(m.coverUrl)}')"></div>` : '<div class="bg msgbg" style="filter:none"></div>';
+      return `${bg}<div class="center">${img}<div class="name serif">${esc(m.name)}</div>
+        <div class="years">${esc(years(m))}</div>${m.tribute ? `<div class="tribute serif">${esc(m.tribute)}</div>` : ''}</div>`;
+    }
+    case 'highlight': {
+      const bg = m.coverUrl ? `<div class="bg" style="background-image:url('${esc(m.coverUrl)}')"></div>` : '<div class="bg msgbg" style="filter:none"></div>';
+      const word = { birthday: 'Celebrating you today', passing: 'Always remembered', anniversary: 'A special day' }[s.h.type] || 'Today';
+      return `${bg}<div class="center"><div class="celebrate">${esc(word)}</div><div class="headline serif">${esc(s.h.text)}</div></div>`;
+    }
+    case 'photo': {
+      const it = s.item;
+      const cap = it.caption || it.from ? `<div class="caption">${it.caption ? `<div>${esc(it.caption)}</div>` : ''}${it.from ? `<div class="from">Shared by ${esc(it.from)}</div>` : ''}</div>` : '';
+      return `<div class="bg" style="background-image:url('${esc(it.url)}')"></div><img class="fg" src="${esc(it.url)}" alt="">${cap}`;
+    }
+    case 'message': {
+      const it = s.item;
+      return `<div class="center msgbg"><div class="quote serif ${it.text.length > 160 ? 'long' : ''}">“${esc(it.text)}”</div>
+        ${it.from ? `<div class="quote-from">${esc(it.from)}</div>` : ''}</div>`;
+    }
+  }
+  return '';
+}
+
+function show(s) {
+  const el = document.createElement('div');
+  el.className = 'slide';
+  const secs = data?.settings?.slideSeconds || 8;
+  el.style.setProperty('--dur', secs + 1.5 + 's');
+  el.innerHTML = slideHtml(s);
+  const stage = $('stage');
+  stage.appendChild(el);
+  const go = () => requestAnimationFrame(() => requestAnimationFrame(() => {
+    el.classList.add('on');
+    for (const old of stage.querySelectorAll('.slide.on')) if (old !== el) {
+      old.classList.remove('on');
+      setTimeout(() => old.remove(), 1600);
+    }
+  }));
+  const img = el.querySelector('img.fg');
+  if (img && !img.complete) { img.onload = go; img.onerror = go; } else go();
+  // Hide the corner name on the portrait and highlight cards, which already show it.
+  const plain = s.kind === 'photo' || s.kind === 'message';
+  $('tag').style.opacity = plain ? '' : '0';
+  $('ribbon').style.opacity = plain ? '' : '0';
+}
+
+function advance(step = 1) {
+  if (!slides.length) return;
+  if (pinnedNext) {
+    const i = slides.findIndex((s) => s.item?.id === pinnedNext);
+    pinnedNext = null;
+    if (i >= 0) pos = i - step;
+  }
+  pos = (pos + step + slides.length) % slides.length;
+  show(slides[pos]);
+  schedule();
+}
+
+function schedule() {
+  clearTimeout(timer);
+  const s = slides[pos];
+  let secs = data?.settings?.slideSeconds || 8;
+  if (s?.kind === 'message') secs = Math.max(secs, Math.min(20, 4 + s.item.text.length / 18));
+  if (s?.kind === 'setup') return (timer = setTimeout(load, 10000));
+  timer = setTimeout(() => { if ($('player').classList.contains('hidden')) advance(); else schedule(); }, secs * 1000);
+}
+
+// ---------- voice notes ----------
+
+const audio = $('audio');
+function playVoice(id) {
+  if (!audio.paused && !id) return stopVoice();
+  if (!voices.length) return;
+  if (id) { const i = voices.findIndex((v) => v.id === id); if (i >= 0) voiceIdx = i; }
+  const v = voices[voiceIdx % voices.length];
+  voiceIdx = (voiceIdx + 1) % voices.length;
+  audio.src = v.url;
+  $('pwho').textContent = v.from ? `Voice note from ${v.from}` : 'Voice note';
+  $('pwhat').textContent = v.caption || '';
+  $('pbar').style.width = '0';
+  $('player').classList.remove('hidden');
+  renderVoiceHint();
+  audio.play().then(() => $('soundhint').classList.add('hidden')).catch(() => {
+    // Browsers block sound until someone touches the page. The real urn's
+    // kiosk browser is launched with autoplay allowed, so this is sim-only.
+    $('soundhint').classList.remove('hidden');
+    stopVoice();
+  });
+}
+function stopVoice() {
+  audio.pause();
+  $('player').classList.add('hidden');
+  renderVoiceHint();
+}
+audio.addEventListener('timeupdate', () => {
+  if (audio.duration) $('pbar').style.width = (100 * audio.currentTime / audio.duration) + '%';
+});
+audio.addEventListener('ended', () => setTimeout(stopVoice, 600));
+
+// ---------- night mode ----------
+
+function minutes(hhmm) { const [h, m] = (hhmm || '0:0').split(':').map(Number); return h * 60 + m; }
+function isNight() {
+  if (forceNight !== null) return forceNight;
+  if (!data?.settings) return false;
+  const now = new Date(), t = now.getHours() * 60 + now.getMinutes();
+  const a = minutes(data.settings.nightStart), b = minutes(data.settings.nightEnd);
+  return a === b ? false : a < b ? t >= a && t < b : t >= a || t < b;
+}
+let wokeUntil = 0;
+function tickNight() {
+  const now = new Date();
+  $('clock').textContent = now.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  $('night').classList.toggle('on', isNight() && Date.now() > wokeUntil && audio.paused);
+}
+setInterval(tickNight, 5000);
+
+// ---------- input ----------
+
+function wake() { wokeUntil = Date.now() + 60000; tickNight(); }
+document.addEventListener('click', () => {
+  $('soundhint').classList.add('hidden');
+  if (isNight() && $('night').classList.contains('on')) return wake();
+  playVoice();
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); playVoice(); }
+  if (e.key === 'ArrowRight') advance(1);
+  if (e.key === 'ArrowLeft') advance(-1);
+});
+
+function action(a) {
+  if (a === 'voice') { wake(); playVoice(); }
+  if (a === 'next') advance(1);
+  if (a === 'prev') advance(-1);
+  if (a === 'wake') wake();
+}
+
+function flashNew(text) {
+  const b = $('newbadge');
+  b.textContent = text;
+  b.classList.remove('hidden');
+  document.body.classList.add('flash');
+  clearTimeout(flashNew.t);
+  flashNew.t = setTimeout(() => { b.classList.add('hidden'); document.body.classList.remove('flash'); }, 12000);
+}
+
+function connect() {
+  const es = new EventSource('/api/events');
+  es.onmessage = async (e) => {
+    const ev = JSON.parse(e.data);
+    if (ev.type === 'action') return action(ev.action);
+    if (ev.type !== 'update') return;
+    await load().catch(console.error);
+    const item = ev.newItem && data?.items.find((i) => i.id === ev.newItem);
+    if (!item) return;
+    wake();
+    const who = item.from ? ` from ${item.from}` : '';
+    if (item.kind === 'voice') {
+      voiceIdx = voices.findIndex((v) => v.id === item.id);
+      flashNew(`New voice note${who} · tap to listen`);
+    } else {
+      flashNew(`New ${item.kind === 'photo' ? 'photo' : 'message'}${who}`);
+      pinnedNext = item.id;
+      advance();
+    }
+  };
+}
+
+// The simulator drives these directly.
+window.urn = { action, setForceNight: (v) => { forceNight = v; tickNight(); }, playVoice };
+
+load().then(connect).catch((e) => { console.error(e); setTimeout(() => location.reload(), 10000); });
+tickNight();
+</script>
+</body>
+</html>

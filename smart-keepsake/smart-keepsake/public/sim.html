@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Keepsake simulator</title>
+<link rel="stylesheet" href="/static/style.css">
+<style>
+  body { min-height: 100vh; }
+  .top { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; padding: 16px 20px 0; }
+  .top h1 { margin: 0; }
+  .layout { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 20px; padding: 16px 20px 32px; align-items: start; }
+  @media (max-width: 900px) { .layout { grid-template-columns: 1fr; } }
+
+  .bench { display: flex; gap: 28px; align-items: flex-start; justify-content: center; flex-wrap: wrap; }
+  .urn { display: flex; flex-direction: column; align-items: center; }
+  .shell { background: linear-gradient(160deg, #6b5446, #3d2f27); padding: 18px; border-radius: 22px;
+    box-shadow: 0 20px 40px rgba(0,0,0,.25), inset 0 1px 0 rgba(255,255,255,.15); position: relative; }
+  .shell.round { border-radius: 50%; padding: 22px; }
+  .screen { overflow: hidden; background: #000; border-radius: 6px; position: relative; }
+  .shell.round .screen { border-radius: 50%; }
+  .screen iframe { border: 0; transform-origin: 0 0; position: absolute; top: 0; left: 0; }
+  .base { width: 70%; height: 46px; background: linear-gradient(#4b3a30, #2f241e); border-radius: 0 0 18px 18px;
+    display: flex; align-items: center; justify-content: center; gap: 18px; box-shadow: 0 14px 24px rgba(0,0,0,.2); }
+  .hwbtn { width: 30px; height: 30px; min-height: 0; padding: 0; border-radius: 50%; border: 2px solid #c9a27f;
+    background: radial-gradient(circle at 40% 35%, #e8c9a0, #a47a58); }
+  .hwbtn:active { transform: translateY(2px); }
+  .nfc { color: #e8c9a0; font-size: .75rem; letter-spacing: .1em; display: flex; gap: 6px; align-items: center; cursor: pointer;
+    background: none; border: 1px dashed rgba(232,201,160,.5); border-radius: 8px; min-height: 0; padding: 4px 8px; }
+  .caption { font-size: .8rem; margin-top: 8px; }
+
+  .phone { width: 300px; height: 600px; border-radius: 36px; background: #111; padding: 12px; box-shadow: 0 20px 40px rgba(0,0,0,.25); position: relative; }
+  .phone iframe { width: 100%; height: 100%; border: 0; border-radius: 26px; background: #fff; }
+  .phone .empty { position: absolute; inset: 12px; border-radius: 26px; background: #222; color: #bbb; display: grid; place-items: center;
+    text-align: center; padding: 24px; font-size: .9rem; }
+
+  .panel h2 { font-size: 1.05rem; margin: 18px 0 6px; }
+  .panel h2:first-child { margin-top: 0; }
+  .panel button { width: 100%; margin-top: 8px; }
+  .seg { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; margin-top: 8px; }
+  .seg button { margin: 0; border-radius: 10px; font-size: .85rem; padding: 8px; }
+  .seg button.on { background: var(--accent-soft); border-color: var(--accent); }
+</style>
+</head>
+<body>
+<div class="top">
+  <h1>Keepsake simulator</h1>
+  <span class="muted">Stands in for the Raspberry Pi, screen, button and NFC tag until the parts arrive.</span>
+</div>
+<div class="layout">
+  <div class="bench">
+    <div class="urn">
+      <div class="shell" id="shell">
+        <div class="screen" id="screen"><iframe id="device" allow="autoplay" title="Keepsake screen"></iframe></div>
+      </div>
+      <div class="base">
+        <button class="hwbtn" id="hwbtn" title="Physical button: play a voice note" aria-label="Press the keepsake button"></button>
+        <button class="nfc" id="nfc" title="Tap a phone on the NFC tag">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 8.3a5 5 0 0 1 0 7.4M9.5 5a10 10 0 0 1 0 14M13 2a14 14 0 0 1 0 20"/></svg>NFC</button>
+      </div>
+      <div class="caption muted" id="screencap"></div>
+    </div>
+    <div>
+      <div class="phone"><iframe id="phone" title="Family phone" class="hidden"></iframe>
+        <div class="empty" id="phoneempty">Family phone<br><br>Tap the NFC spot on the keepsake to open the family page here, like a real phone would.</div>
+      </div>
+      <div class="caption muted" style="text-align:center">A family member's phone</div>
+    </div>
+  </div>
+
+  <div class="card panel">
+    <h2>Screen</h2>
+    <select id="preset">
+      <option value="720x720">4" square, 720 × 720</option>
+      <option value="480x480r">2.1" round, 480 × 480</option>
+      <option value="800x480">5" wide, 800 × 480</option>
+      <option value="1024x600">7" wide, 1024 × 600</option>
+    </select>
+
+    <h2>Button on the keepsake</h2>
+    <button class="primary" id="b_voice">Press: play a voice note</button>
+    <div class="seg" style="grid-template-columns:1fr 1fr">
+      <button id="b_prev">◀ Previous</button><button id="b_next">Next ▶</button>
+    </div>
+
+    <h2>Pretend today is</h2>
+    <input type="date" id="date">
+    <p class="small muted" style="margin:6px 0 0">Pick a birthday or anniversary to see how the keepsake marks it.</p>
+
+    <h2>Night dimming</h2>
+    <div class="seg" id="night">
+      <button data-v="auto" class="on">Schedule</button><button data-v="on">Night</button><button data-v="off">Day</button>
+    </div>
+
+    <h2>Content</h2>
+    <button id="b_admin">Owner settings</button>
+    <button id="b_demo">Load demo family</button>
+    <p class="small muted" id="demohint" style="margin:6px 0 0">Fills an empty keepsake with a sample person, photos and messages.</p>
+  </div>
+</div>
+
+<script src="/static/common.js"></script>
+<script>
+const $ = (id) => document.getElementById(id);
+const dev = $('device');
+let preset = '720x720';
+try { preset = localStorage.getItem('sim_preset') || preset; } catch {}
+$('preset').value = preset;
+
+function deviceUrl() {
+  const p = new URLSearchParams({ sim: '1' });
+  if ($('date').value) p.set('date', $('date').value);
+  if (preset.endsWith('r')) p.set('shape', 'round');
+  return '/device?' + p;
+}
+
+function layout() {
+  const [w, h] = preset.replace('r', '').split('x').map(Number);
+  const room = Math.min(560, document.querySelector('.bench').clientWidth - 40);
+  const scale = Math.min(1, room / Math.max(w, h));
+  dev.style.width = w + 'px';
+  dev.style.height = h + 'px';
+  dev.style.transform = `scale(${scale})`;
+  $('screen').style.width = w * scale + 'px';
+  $('screen').style.height = h * scale + 'px';
+  $('shell').classList.toggle('round', preset.endsWith('r'));
+  $('screencap').textContent = `${w} × ${h} display, shown at ${Math.round(scale * 100)}%`;
+}
+
+function reloadDevice() { dev.src = deviceUrl(); }
+
+$('preset').onchange = () => {
+  preset = $('preset').value;
+  try { localStorage.setItem('sim_preset', preset); } catch {}
+  layout(); reloadDevice();
+};
+$('date').onchange = reloadDevice;
+window.addEventListener('resize', layout);
+
+const urn = () => dev.contentWindow.urn;
+$('hwbtn').onclick = $('b_voice').onclick = () => urn()?.action('voice');
+$('b_next').onclick = () => urn()?.action('next');
+$('b_prev').onclick = () => urn()?.action('prev');
+
+document.querySelectorAll('#night button').forEach((b) => b.onclick = () => {
+  document.querySelectorAll('#night button').forEach((x) => x.classList.toggle('on', x === b));
+  urn()?.setForceNight({ auto: null, on: true, off: false }[b.dataset.v]);
+});
+
+$('nfc').onclick = () => {
+  $('phone').src = '/family';
+  $('phone').classList.remove('hidden');
+  $('phoneempty').classList.add('hidden');
+};
+$('b_admin').onclick = () => window.open('/admin', '_blank');
+
+$('b_demo').onclick = async () => {
+  try {
+    const r = await api('/api/demo', { method: 'POST' });
+    toast(`Demo loaded. Family code: ${r.familyCode}, owner code: ${r.ownerCode}`);
+    $('demohint').textContent = `Family code: ${r.familyCode} · Owner code: ${r.ownerCode}`;
+  } catch (err) { toast(err.message, true); }
+};
+
+layout();
+reloadDevice();
+</script>
+</body>
+</html>

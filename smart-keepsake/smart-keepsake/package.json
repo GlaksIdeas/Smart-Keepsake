@@ -1,0 +1,14 @@
+{
+  "name": "smart-keepsake",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Software for a smart memorial urn / keepsake: photo slideshow, voice notes, special-day highlights and a family upload app.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test test/*.test.js"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
