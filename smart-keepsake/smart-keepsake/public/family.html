@@ -179,7 +179,14 @@ document.querySelectorAll('.action').forEach((b) => b.onclick = () => {
   const open = !b.classList.contains('active');
   document.querySelectorAll('.action').forEach((x) => x.classList.remove('active'));
   document.querySelectorAll('.panel').forEach((p) => p.classList.add('hidden'));
-  if (open) { b.classList.add('active'); $(b.dataset.panel).classList.remove('hidden'); }
+  if (!open) return;
+  b.classList.add('active');
+  const panel = $(b.dataset.panel);
+  panel.classList.remove('hidden');
+  // Go straight to the phone's photo picker; the panel below shows the
+  // previews and the send button.
+  if (b.dataset.panel === 'photos' && !$('photofiles').files.length) $('photofiles').click();
+  panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
 });
 
 function upload(blob, filename, fields, onProgress) {
@@ -226,6 +233,7 @@ $('photofiles').onchange = () => {
   $('previews').innerHTML = files.map((f) => `<img src="${URL.createObjectURL(f)}" alt="">`).join('');
   $('photosend').disabled = !files.length;
   $('photosend').textContent = files.length > 1 ? `Add ${files.length} photos` : 'Add to keepsake';
+  if (files.length) setTimeout(() => $('photosend').scrollIntoView({ behavior: 'smooth', block: 'center' }), 100);
 };
 $('photos').onsubmit = async (e) => {
   e.preventDefault();

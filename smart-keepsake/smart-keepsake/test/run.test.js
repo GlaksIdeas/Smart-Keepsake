@@ -70,4 +70,9 @@ test('api: setup, codes, upload, feed, range requests', async (t) => {
   const feed = await r.json();
   assert.equal(feed.items.length, 1);
   assert.match(feed.calendar.highlights[0].text, /80th birthday/);
+
+  r = await fetch(base + '/qr.svg');
+  assert.equal(r.headers.get('content-type'), 'image/svg+xml');
+  assert.match(r.headers.get('x-qr-target'), /\/family$/);
+  assert.match(await r.text(), /^<svg[^>]*><rect[^>]*\/><path d="M/);
 });

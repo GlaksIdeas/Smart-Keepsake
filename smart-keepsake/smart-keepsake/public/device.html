@@ -40,6 +40,14 @@
   .celebrate { color: var(--gold); font-size: 3.6vmin; letter-spacing: .2em; text-transform: uppercase; margin-bottom: 3vmin; }
   .headline { font-size: 6.4vmin; line-height: 1.25; max-width: 22ch; }
 
+  .qr { width: 44vmin; height: 44vmin; border-radius: 2vmin; background: #fff; padding: 1vmin; flex: none; }
+  .share { gap: 4vmin; }
+  .share .headline { font-size: 6vmin; }
+  @media (min-aspect-ratio: 4/3) {
+    .share { flex-direction: row; text-align: left; }
+    .share .qr { width: 62vmin; height: 62vmin; }
+  }
+
   /* persistent overlays */
   .tag { position: absolute; top: 4vmin; left: 4vmin; font-size: max(3vmin, 15px); opacity: .7; text-shadow: 0 1px 4px #000; transition: opacity .4s; }
   .ribbon { transition: opacity .4s; position: absolute; top: 4vmin; right: 4vmin; background: rgba(232,201,160,.92); color: #2a1d14;
@@ -69,6 +77,21 @@
     display: flex; align-items: center; justify-content: center; flex-direction: column; }
   .night.on { opacity: .9; }
   .night .clock { font-size: 12vmin; opacity: .35; font-weight: 200; }
+
+  /* tiny screens (2.8" 320 x 240): fewer, larger overlays */
+  @media (max-width: 400px), (max-height: 300px) {
+    .tag { display: none; }
+    .ribbon { left: 50%; right: auto; transform: translateX(-50%); top: 6px; font-size: 12px; padding: 3px 10px; max-width: 92%; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .newbadge { top: 6px; font-size: 12px; padding: 3px 10px; }
+    .caption { font-size: 14px; padding: 36px 10px 24px; }
+    .caption .from { font-size: 12px; }
+    .voicehint { font-size: 11px; bottom: 5px; right: 8px; }
+    .share .qr { width: 78vmin; height: 78vmin; }
+    .share .headline { font-size: 17px; }
+    .share .tribute { font-size: 12px; }
+    .quote { font-size: 17px; } .quote.long { font-size: 14px; } .quote-from { font-size: 13px; }
+    .player { padding: 8px 12px; bottom: 26px; } .player .who { font-size: 14px; } .player .what { font-size: 12px; }
+  }
 
   /* round screens: keep corner overlays inside the circle */
   body.round .tag { top: 13vmin; left: 50%; transform: translateX(-50%); }
@@ -152,6 +175,7 @@ function build() {
 
   const list = data.calendar.highlights.map((h) => ({ kind: 'highlight', h }));
   list.push({ kind: 'portrait' });
+  list.push({ kind: 'share' });
   let mi = 0;
   photos.forEach((p, i) => {
     list.push({ kind: 'photo', item: p });
@@ -187,7 +211,12 @@ function slideHtml(s) {
   switch (s.kind) {
     case 'setup':
       return `<div class="center msgbg"><div class="name serif">Welcome</div>
-        <div class="tribute">To set up this keepsake, open<br><b class="setupurl">/admin</b><br>on a phone or computer on the same Wi-Fi.</div></div>`;
+        <img class="qr" src="/qr.svg?page=admin" alt="" style="margin-top:3vmin">
+        <div class="tribute">Scan to set up this keepsake, or open<br><b class="setupurl">/admin</b><br>on a phone or computer on the same Wi-Fi.</div></div>`;
+    case 'share':
+      return `<div class="center msgbg share"><img class="qr" src="/qr.svg" alt="">
+        <div><div class="headline serif">Share a memory of ${esc(m.nickname || m.name.split(' ')[0])}</div>
+        <div class="tribute">Point your phone camera here to add photos, voice notes and messages.</div></div></div>`;
     case 'portrait': {
       const img = m.coverUrl ? `<img class="portrait" src="${esc(m.coverUrl)}" alt="">` : '';
       const bg = m.coverUrl ? `<div class="bg" style="background-image:url('${esc(m.coverUrl)}')"></div>` : '<div class="bg msgbg" style="filter:none"></div>';

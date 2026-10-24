@@ -12,6 +12,7 @@ const crypto = require('node:crypto');
 const os = require('node:os');
 const { parseDate, buildCalendar, allDates } = require('./lib/dates');
 const { demoContent } = require('./lib/demo');
+const qrcode = require('./lib/vendor/qrcode');
 
 const PORT = Number(process.env.PORT ?? 8080);
 const DATA_DIR = path.resolve(process.env.DATA_DIR || path.join(__dirname, 'data'));
@@ -224,14 +225,37 @@ async function serveFile(req, res, file, type, cache = 'no-cache') {
   fs.createReadStream(file).pipe(res);
 }
 
-function lanUrls() {
-  const urls = [];
-  for (const list of Object.values(os.networkInterfaces())) {
+// Addresses phones on the home Wi-Fi can use, best guess first. Virtual
+// adapters (WSL, Docker, VirtualBox, VPNs) are skipped because phones can't
+// reach them. PUBLIC_URL overrides everything, e.g. for a hosted version.
+const VIRTUAL = /vethernet|virtualbox|vmware|docker|wsl|hyper-v|^br-|^veth|^tun|^tap|^utun|tailscale|zerotier/i;
+
+function lanUrls(page = 'family') {
+  if (process.env.PUBLIC_URL) return [`${process.env.PUBLIC_URL.replace(/\/+$/, '')}/${page}`];
+  const found = [];
+  for (const [name, list] of Object.entries(os.networkInterfaces())) {
+    if (VIRTUAL.test(name)) continue;
     for (const a of list || []) {
-      if (a.family === 'IPv4' && !a.internal) urls.push(`http://${a.address}:${PORT}/family`);
+      if (a.family === 'IPv4' && !a.internal && !a.address.startsWith('169.254.')) found.push(a.address);
     }
   }
-  return urls;
+  const rank = (ip) => (ip.startsWith('192.168.') ? 0 : ip.startsWith('10.') ? 1 : ip.startsWith('172.') ? 2 : 3);
+  found.sort((a, b) => rank(a) - rank(b));
+  return found.map((ip) => `http://${ip}:${PORT}/${page}`);
+}
+
+// QR code (SVG) pointing at the family page, or the owner page while not set up.
+function qrSvg(text) {
+  const qr = qrcode(0, 'M');
+  qr.addData(text);
+  qr.make();
+  const n = qr.getModuleCount(), q = 4;
+  let d = '';
+  for (let r = 0; r < n; r++) {
+    for (let c = 0; c < n; c++) if (qr.isDark(r, c)) d += `M${c + q} ${r + q}h1v1h-1z`;
+  }
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${n + 2 * q} ${n + 2 * q}" shape-rendering="crispEdges">` +
+    `<rect width="100%" height="100%" fill="#fff"/><path d="${d}" fill="#000"/></svg>`;
 }
 
 // ---------- views of the data ----------
@@ -482,6 +506,12 @@ route('POST', /^\/api\/demo$/, async (req, res) => {
   await saveDb();
   broadcast({ type: 'update' });
   send(res, 200, { familyCode: demo.familyCode, ownerCode: demo.ownerCode });
+});
+
+route('GET', /^\/qr\.svg$/, (req, res, url) => {
+  const page = url.searchParams.get('page') === 'admin' ? 'admin' : 'family';
+  const target = lanUrls(page)[0] || `http://localhost:${PORT}/${page}`;
+  send(res, 200, qrSvg(target), { 'Content-Type': 'image/svg+xml', 'X-QR-Target': target });
 });
 
 route('GET', /^\/media\/([0-9a-f]+\.[a-z0-9]+)$/, async (req, res, url, m) => {

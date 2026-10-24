@@ -29,7 +29,7 @@
     background: none; border: 1px dashed rgba(232,201,160,.5); border-radius: 8px; min-height: 0; padding: 4px 8px; }
   .caption { font-size: .8rem; margin-top: 8px; }
 
-  .phone { width: 300px; height: 600px; border-radius: 36px; background: #111; padding: 12px; box-shadow: 0 20px 40px rgba(0,0,0,.25); position: relative; }
+  .phone { width: 320px; height: min(720px, calc(100vh - 120px)); min-height: 520px; border-radius: 36px; background: #111; padding: 12px; box-shadow: 0 20px 40px rgba(0,0,0,.25); position: relative; }
   .phone iframe { width: 100%; height: 100%; border: 0; border-radius: 26px; background: #fff; }
   .phone .empty { position: absolute; inset: 12px; border-radius: 26px; background: #222; color: #bbb; display: grid; place-items: center;
     text-align: center; padding: 24px; font-size: .9rem; }
@@ -64,13 +64,14 @@
       <div class="phone"><iframe id="phone" title="Family phone" class="hidden"></iframe>
         <div class="empty" id="phoneempty">Family phone<br><br>Tap the NFC spot on the keepsake to open the family page here, like a real phone would.</div>
       </div>
-      <div class="caption muted" style="text-align:center">A family member's phone</div>
+      <div class="caption muted" style="text-align:center">A family member's phone · <a href="/family" target="_blank">open bigger</a></div>
     </div>
   </div>
 
   <div class="card panel">
     <h2>Screen</h2>
     <select id="preset">
+      <option value="320x240">2.8" small, 320 × 240</option>
       <option value="720x720">4" square, 720 × 720</option>
       <option value="480x480r">2.1" round, 480 × 480</option>
       <option value="800x480">5" wide, 800 × 480</option>
@@ -91,6 +92,9 @@
     <div class="seg" id="night">
       <button data-v="auto" class="on">Schedule</button><button data-v="on">Night</button><button data-v="off">Day</button>
     </div>
+
+    <h2>QR code</h2>
+    <p class="small muted" style="margin:0" id="qrtarget">The keepsake shows a QR code slide that opens the family page.</p>
 
     <h2>Content</h2>
     <button id="b_admin">Owner settings</button>
@@ -161,6 +165,11 @@ $('b_demo').onclick = async () => {
     $('demohint').textContent = `Family code: ${r.familyCode} · Owner code: ${r.ownerCode}`;
   } catch (err) { toast(err.message, true); }
 };
+
+fetch('/qr.svg').then((r) => {
+  const t = r.headers.get('X-QR-Target');
+  if (t) $('qrtarget').innerHTML = `The keepsake's QR slide opens <b>${esc(t)}</b>. Scan it from this screen with your real phone (same Wi-Fi) to try it.`;
+});
 
 layout();
 reloadDevice();

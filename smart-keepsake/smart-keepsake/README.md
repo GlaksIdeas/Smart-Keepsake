@@ -35,6 +35,7 @@ Run the tests with `npm test`.
 - **Special days**: birthday and passing date come from the profile. The owner can add anniversaries (with or without a known year). On the day, the urn opens with a card like "Today would have been Peg's 80th birthday". The family page lists dates coming up in the next two weeks.
 - **Night dimming**: between the hours set by the owner (default 10 pm to 7 am) the screen goes nearly black with a faint clock. Touching it or pressing the button wakes it for a minute.
 - **NFC**: the plan is a cheap passive NFC sticker (NTAG215) inside the shell, written with the family page address using a free phone app such as NFC Tools. Tapping a phone on the urn opens the family page. No reader on the Pi is needed. The simulator's NFC spot opens the family page in the phone frame.
+- **QR code**: the keepsake shows a "Share a memory" slide with a QR code (right after the portrait) that opens the family page. Before setup it shows a QR code for the owner page instead. The owner page shows the same QR code to print on a card. The address is guessed from the computer's Wi-Fi connection; if it picks the wrong one, start the server with `PUBLIC_URL` set (for example `set PUBLIC_URL=http://192.168.1.20:8080` on Windows before `npm start`).
 - **The button**: short press plays the next voice note, hold for 1 second to skip to the next photo.
 
 ## Files
@@ -43,6 +44,7 @@ Run the tests with `npm test`.
 server.js            the whole server (no extra packages)
 lib/dates.js         birthday / anniversary logic
 lib/demo.js          demo person for the simulator
+lib/vendor/qrcode.js QR code generator by Kazuhiko Arase (MIT license)
 public/              the four pages
 hardware/            Raspberry Pi setup: kiosk, boot services, GPIO button
 test/                automated tests
@@ -54,7 +56,7 @@ data/                created at first run: db.json + media/ (photos, voice notes
 Suggested parts for the first prototype (prices are rough estimates, check current listings):
 
 - Raspberry Pi Zero 2 W, about $15, plus a 32 GB microSD card
-- A screen. Good fits: a 4" 720 × 720 square HDMI or DPI screen, a 2.1" 480 × 480 round screen (Pimoroni HyperPixel 2.1 Round), or a 5" 800 × 480. The simulator has all three.
+- A screen. Good fits: a 2.8" 320 × 240 SPI screen (cheapest), a 4" 720 × 720 square HDMI or DPI screen, a 2.1" 480 × 480 round screen (Pimoroni HyperPixel 2.1 Round), or a 5" 800 × 480. The simulator has all of these.
 - Sound: the Zero has no headphone jack. Use a MAX98357A I2S amplifier board (about $6) and a small 3 W speaker, or a USB sound card.
 - A momentary push button and an NTAG215 NFC sticker.
 - A 5 V 2.5 A USB power supply.
@@ -88,6 +90,5 @@ Notes for the Pi:
 ## Next steps worth considering
 
 - **A cloud companion service.** Right now family must be on the same Wi-Fi as the urn. A small hosted service would let family add memories from anywhere, give https (in-page voice recording), back up the memories, and is where a subscription would live. This is the biggest step toward a product.
-- **A QR code** on the setup screen and printed card, next to the NFC tag, for phones without NFC.
 - **Wi-Fi setup without a keyboard** for customers (a hotspot setup page on first boot).
 - **Moderation**: let the owner approve uploads before they show, if families want that.
